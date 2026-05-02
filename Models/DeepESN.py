@@ -12,9 +12,9 @@ import matplotlib
 matplotlib.use("tKagg")
 
 class DeepNetwork:
-    def __init__(self, n_reservoirs, N, sr, lr, sigma, ridge, input_dim, input_width, reservoir_width, connectivity, ip_lrs, IP=True):
+    def __init__(self, n_reservoirs, N_total, sr, lr, sigma, ridge, input_dim, input_width, reservoir_width, connectivity, ip_lrs, IP=True):
         self.n_reservoirs = n_reservoirs
-        self.N = N # Consistent across reservoirs
+        self.N_total = N_total
         self.sr = sr
         self.lr = lr
         self.sigma = sigma # Consistent across reservoirs?
@@ -29,17 +29,18 @@ class DeepNetwork:
 
         self._build_model(n_reservoirs)
 
-    def _build_model(self, n):
+    def _build_model(self, n_reservoirs):
         self.reservoirs = []
         sr = self.sr
         lr = self.lr
-        for i in range(n):
+        N = int(round(self.N_total / n_reservoirs))
+        for i in range(n_reservoirs):
             if self.IP:
-                reservoir = IPReservoir(self.N, sr=sr, lr=lr, mu=0.0, sigma=self.sigma, activation="tanh",
+                reservoir = IPReservoir(N, sr=sr, lr=lr, mu=0.0, sigma=self.sigma, activation="tanh",
                                         epochs=4,
                                         learning_rate=self.ip_lrs[i], dtype=np.float32, name=f"reservoir_{i}")
             else:
-                reservoir = Reservoir(self.N, sr=sr, lr=lr, dtype=np.float32, name=f"reservoir_{i}")
+                reservoir = Reservoir(N, sr=sr, lr=lr, dtype=np.float32, name=f"reservoir_{i}")
 
             self.reservoirs.append(reservoir)
             # sr += 0.05
@@ -97,19 +98,7 @@ class DeepNetwork:
 
     import numpy as np
 
-    def _evaluate_ip_lrs(self, X, previous_lrs, layer, lrs, iterations=10):
-        """
-        Evaluate a list of candidate IP learning rates for the current layer.
-
-        Returns
-        -------
-        best_lr : float
-            Learning rate with the lowest mean KL.
-        best_mean_kl : float
-            Lowest mean KL found.
-        results : list of tuples
-            List of (lr, mean_kl, std_kl).
-        """
+    def _evaluate_ip_lrs(self, X, previous_lrs, layer, lrs, iterations=5):
         best_lr = None
         best_mean_kl = np.inf
         results = []
@@ -145,109 +134,41 @@ class DeepNetwork:
 
         return best_lr, best_mean_kl, results
 
-    def find_optimal_ip_lr(self, X, previous_lrs, layer, iterations=10,
-                           coarse_exponents=(-7, -6, -5, -4, -3),
-                           refine_radius=1,
-                           points_per_round=10,
-                           min_exp=-10,
-                           max_exp=0,
-                           return_history=False):
-        """
-        Find the optimal IP learning rate for one layer using:
-        1) coarse search in log-space
-        2) one or more refinement rounds around the current best value
-
-        Parameters
-        ----------
-        X : array-like
-            Input data.
-        previous_lrs : list
-            Best learning rates already chosen for previous layers.
-        layer : int
-            Current layer depth being tuned.
-        iterations : int
-            Number of repeated runs per candidate lr.
-        coarse_exponents : tuple
-            Exponents for initial coarse log10 search.
-            Example: (-7, -6, -5, -4, -3)
-        refine_radii : tuple
-            Radii in log10-space for refinement rounds.
-            Example: (0.5, 0.2)
-        points_per_round : int
-            Number of lr values to try in each refinement round.
-        min_exp, max_exp : float
-            Global allowed bounds in log10-space.
-        return_history : bool
-            If True, also return search details.
-
-        Returns
-        -------
-        best_lr : float
-            Best learning rate found.
-        history : dict, optional
-            Returned only if return_history=True.
-        """
-
-        history = {
-            "coarse": None,
-            "refinements": []
-        }
-
-        # -------------------------
-        # 1. Coarse search
-        # -------------------------
+    def find_optimal_ip_lr(
+            self,
+            X,
+            previous_lrs,
+            layer,
+            iterations=10,
+            coarse_exponents=(-6, -5, -4),
+            refine_radius=0.9,
+            points_per_round=10,
+            min_exp=-10,
+            max_exp=0,
+    ):
         coarse_lrs = 10 ** np.array(coarse_exponents, dtype=float)
 
-        best_lr, best_mean_kl, coarse_results = self._evaluate_ip_lrs(
+        best_lr, _, _ = self._evaluate_ip_lrs(
             X=X,
             previous_lrs=previous_lrs,
             layer=layer,
             lrs=coarse_lrs,
-            iterations=iterations
+            iterations=iterations,
         )
 
-        history["coarse"] = {
-            "lrs": coarse_lrs,
-            "results": coarse_results,
-            "best_lr": best_lr,
-            "best_mean_kl": best_mean_kl
-        }
-
-        # -------------------------
-        # 2. Refinement rounds
-        # -------------------------
         center = np.log10(best_lr)
-
         low = max(min_exp, center - refine_radius)
         high = min(max_exp, center + refine_radius)
 
-        refine_exponents = np.linspace(low, high, points_per_round)
-        refine_lrs = 10 ** refine_exponents
+        refine_lrs = 10 ** np.linspace(low, high, points_per_round)
 
-        round_best_lr, round_best_mean_kl, refine_results = self._evaluate_ip_lrs(
+        best_lr, _, _ = self._evaluate_ip_lrs(
             X=X,
             previous_lrs=previous_lrs,
             layer=layer,
             lrs=refine_lrs,
-            iterations=iterations
+            iterations=iterations,
         )
-
-        history["refinements"].append({
-            "radius": refine_radius,
-            "lrs": refine_lrs,
-            "results": refine_results,
-            "best_lr": round_best_lr,
-            "best_mean_kl": round_best_mean_kl
-        })
-
-        best_lr = round_best_lr
-        best_mean_kl = round_best_mean_kl
-        center = np.log10(best_lr)
-
-        if return_history:
-            return best_lr, history
-
-        print(f"Best LR for layer {layer}: {best_lr}")
 
         return best_lr
 
@@ -255,78 +176,78 @@ class DeepNetwork:
     def find_optimal_layers(self, max_layers, X, guesses, eta):
         washout = 100
         centroids = []
-        # lrs = []
+        lrs = []
         for n in range(1, max_layers + 1):
             all_last_states = []
             all_secondtolast_states = []
-            # lr = self.find_optimal_ip_lr(X, lrs, n)
-            # lrs.append(lr)
-            for g in range(guesses):
-                # self.ip_lrs = lrs
-                self._build_model(n)
-                if self.IP:
-                    self.apply_ip()
-                self.create_input_weights()
-
-                guess_states = self.forward.run(X, workers=self.workers)
-
-                # plt.plot(guess_states[:,0] - np.mean(guess_states[:,0]))
-                # plt.show()
-
-                if n > 1:
-                    guess_states = list(guess_states.values())
-
-                    # if n == 15:
-                    #     kl, ent = get_KL_divergence_and_entropy(guess_states[-1], self.sigma)
-                    #     print(f"kl: {kl}")
-                    #     plot_pdf(guess_states[-1], self.sigma, f"IP on layer {n}")
-
-                    all_last_states.append(guess_states[-1][washout:])
-                    all_secondtolast_states.append(guess_states[-2][washout:])
-                else:
-                    all_last_states.append(guess_states[washout:])
-
-                    # kl, ent = get_KL_divergence_and_entropy(guess_states, self.sigma)
-                    # print(f"kl: {kl}")
-                    # plot_pdf(guess_states, self.sigma, f"IP on layer {n}")
-
-            p, f_norm, f = self.compute_fft(all_last_states)
-
-            p_norm = p / np.max(p)
-            if n == max_layers:
-                plt.figure(figsize=(10, 5))
-                markerline, stemlines, baseline = plt.stem(f, p_norm)
-
-                plt.setp(markerline, visible=False)
-                plt.setp(baseline, visible=False)
-                plt.ylim(bottom=0)
-
-                plt.xlabel("Frequency")
-                plt.ylabel("Normalized Magnitude")
-                plt.title("Frequency Spectrum")
-                plt.show()
-
-            mu = np.sum(p * f_norm) / np.sum(p)
-            sigma = np.sqrt(np.sum(p * (f_norm - mu) ** 2) / np.sum(p))
-
-            mu_f = np.sum(p * f) / np.sum(p)
-
-            centroids.append(mu_f)
-            print(f"layer {n} centroid: {mu_f:.4f}")
-
-            if n > 1:
-                p2, f2, _ = self.compute_fft(all_secondtolast_states)
-                mu2 = np.sum(p2 * f2) / np.sum(p2)
-                sigma2 = np.sqrt(np.sum(p2 * (f2 - mu2) ** 2) / np.sum(p2))
-
-                if abs(mu - mu2) <= eta * sigma2:
-                    print(f"Stopping at layer {n}")
-                    # return n, centroids
-                elif mu > mu2:
-                    print(f"Stopping at layer {n-1}")
-                    # return n-1, centroids
-
-        return max_layers, centroids
+            lr = self.find_optimal_ip_lr(X, lrs, n)
+            lrs.append(lr)
+        #     for g in range(guesses):
+        #         # self.ip_lrs = lrs
+        #         self._build_model(n)
+        #         if self.IP:
+        #             self.apply_ip()
+        #         self.create_input_weights()
+        #
+        #         guess_states = self.forward.run(X, workers=self.workers)
+        #
+        #         # plt.plot(guess_states[:,0] - np.mean(guess_states[:,0]))
+        #         # plt.show()
+        #
+        #         if n > 1:
+        #             guess_states = list(guess_states.values())
+        #
+        #             # if n == 15:
+        #             #     kl, ent = get_KL_divergence_and_entropy(guess_states[-1], self.sigma)
+        #             #     print(f"kl: {kl}")
+        #             #     plot_pdf(guess_states[-1], self.sigma, f"IP on layer {n}")
+        #
+        #             all_last_states.append(guess_states[-1][washout:])
+        #             all_secondtolast_states.append(guess_states[-2][washout:])
+        #         else:
+        #             all_last_states.append(guess_states[washout:])
+        #
+        #             # kl, ent = get_KL_divergence_and_entropy(guess_states, self.sigma)
+        #             # print(f"kl: {kl}")
+        #             # plot_pdf(guess_states, self.sigma, f"IP on layer {n}")
+        #
+        #     p, f_norm, f = self.compute_fft(all_last_states)
+        #
+        #     p_norm = p / np.max(p)
+        #     if n == max_layers:
+        #         plt.figure(figsize=(10, 5))
+        #         markerline, stemlines, baseline = plt.stem(f, p_norm)
+        #
+        #         plt.setp(markerline, visible=False)
+        #         plt.setp(baseline, visible=False)
+        #         plt.ylim(bottom=0)
+        #
+        #         plt.xlabel("Frequency")
+        #         plt.ylabel("Normalized Magnitude")
+        #         plt.title("Frequency Spectrum")
+        #         plt.show()
+        #
+        #     mu = np.sum(p * f_norm) / np.sum(p)
+        #     sigma = np.sqrt(np.sum(p * (f_norm - mu) ** 2) / np.sum(p))
+        #
+        #     mu_f = np.sum(p * f) / np.sum(p)
+        #
+        #     centroids.append(mu_f)
+        #     print(f"layer {n} centroid: {mu_f:.4f}")
+        #
+        #     if n > 1:
+        #         p2, f2, _ = self.compute_fft(all_secondtolast_states)
+        #         mu2 = np.sum(p2 * f2) / np.sum(p2)
+        #         sigma2 = np.sqrt(np.sum(p2 * (f2 - mu2) ** 2) / np.sum(p2))
+        #
+        #         if abs(mu - mu2) <= eta * sigma2:
+        #             print(f"Stopping at layer {n}")
+        #             # return n, centroids
+        #         elif mu > mu2:
+        #             print(f"Stopping at layer {n-1}")
+        #             # return n-1, centroids
+        #
+        # return max_layers, centroids
 
     def compute_fft(self, states):
         comps_g = []
@@ -402,9 +323,8 @@ class DeepNetwork:
                 reservoir.Win = Win
                 reservoir.input_dim = input_dim
             else:
-                input_dim = self.N
-                n = 1 / input_dim
-                Win = np.random.uniform(-n, n, (reservoir.units, input_dim))
+                input_dim = reservoir.units
+                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim))
                 reservoir.Win = Win
                 mask = np.random.rand(reservoir.units, input_dim) < p
                 Win *= mask

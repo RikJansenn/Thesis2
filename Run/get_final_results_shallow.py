@@ -7,11 +7,19 @@ from Models.ShallowESN import ShallowNetwork
 
 def create_training_data(SPEC):
     """
-    Load training data
-    :param SPEC: Which type of input data to use
-    :return:
-        X: Spectrograms
-        Y: Labels
+    Load and prepare training data.
+
+    Parameters
+    ----------
+    SPEC : str
+        Type of input data to use ('linear', 'mel' or 'coch').
+
+    Returns
+    -------
+    X : np.ndarray (n_samples, n_timesteps, n_features)
+        Input features.
+    Y : np.ndarray (n_samples, n_timesteps, n_features)
+        Corresponding labels.
     """
     if SPEC == "linear":
         data_train = np.load("../Data/linear_data/linear_train.npz")
@@ -32,18 +40,29 @@ def create_training_data(SPEC):
     X = np.concatenate([X_train, X_test], axis=0)
     Y = np.concatenate([Y_train, Y_test], axis=0)
 
-    return X[:3000], Y[:3000]
+    return X, Y
 
 
 def get_results(param_sets, IP, TONOTOPIC, SPEC):
     """
-    Gets full result from given parameter sets and a given model configuration
-    :param param_sets: All parameter sets
-    :param IP: Boolean - Apply IP or not
-    :param TONOTOPIC: Boolean - Apply tonotopic mapping or not
-    :param SPEC: String - Which input type to use
-    :return: Saves full results in csv files
-    """
+       Generate and save results for a set of parameter configurations.
+
+       Parameters
+       ----------
+       param_sets : list
+           Parameter sets to evaluate.
+       IP : bool
+           Whether to apply IP
+       TONOTOPIC : bool
+           Whether to apply tonotopic mapping.
+       SPEC : str
+           Input type to use ('linear', 'mel' or 'coch').
+
+       Returns
+       -------
+       None
+           Results are saved to CSV files.
+       """
     # Directory in which to save results, based on model configuration
     save_dir = f"../results/{'ip_' if IP else 'stoch_'}{'tono_' if TONOTOPIC else ''}{SPEC}"
 
@@ -69,9 +88,8 @@ def get_results(param_sets, IP, TONOTOPIC, SPEC):
 
                 # Create model
                 print("Creating model...")
-                model = ShallowNetwork(N=N, sr=sr, lr=lr, input_scaling=1, sigma=sigma, ridge=1e-7,
-                                       input_dim=X_train[0].shape[1], input_width=0.06,
-                                       reservoir_width=0.2, connectivity=0.1, IP=IP)
+                model = ShallowNetwork(N=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
+                                       input_dim=X_train[0].shape[1], input_width=0.06, IP=IP)
 
                 # Apply IP
                 if IP:
@@ -140,9 +158,9 @@ if __name__ == "__main__":
     Define model configuration and parameter sets and call get_results for each
     """
     # Define which model configurations to test with
-    IPs = [False, True]
-    TONOs = [True]
-    SPECs = ["linear", "mel", "coch"]
+    IPs = [True, True]
+    TONOs = [True, True]
+    SPECs = ["mel", "mel", "coch"]
 
     for IP in IPs:
         for TONO in TONOs:

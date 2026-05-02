@@ -72,63 +72,62 @@ if __name__ == "__main__":
 
     X_train, Y_train, X_test, Y_test, X_param, Y_param = create_training_data(SPEC)
 
-    Ns = [100, 100, 200]
+    Ns = [50, 100, 200]
     sr = 0.8
     lrs = [0.9]
     sigmas = [0.1]
     ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
               7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
-
+    # ip_lrs = [2.2e-4, 3.6e-4, 2.1e-4, 2.2e-4, 4.6e-4, 3.6e-4, 3.6e-4, 2.1e-4, 3.6e-4, 2.2e-4, 2.2e-4, 3.6e-4, 3.6e-4, 3.6e-4, 2.2e-4]
+    # ip_lrs = [2.2e-4, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4, 1.3e-4, 4.6e-5, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4]
+    # ip_lrs = [2.2e-4]
     results = []
-    for N in Ns:
-        for lr in lrs:
-            for sigma in sigmas:
-                print("Creating model...")
-                model = DeepNetwork(n_reservoirs=10, N=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
-                                    input_width=0.06, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs, IP=IP)
+    for lr in lrs:
+        for sigma in sigmas:
+            print("Creating model...")
+            model = DeepNetwork(n_reservoirs=10, N_total=1200, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
+                                input_width=0.06, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs, IP=IP)
 
-                model.rescale_reservoirs()
+            model.rescale_reservoirs()
 
-                combined = np.concatenate(X_param[:150], axis=0)
-                combined = combined[~np.all(combined == 0, axis=1)]
+            combined = np.concatenate(X_param[:150], axis=0)
+            combined = combined[~np.all(combined == 0, axis=1)]
 
-                n, centroids = model.find_optimal_layers(15, combined, 10, 0.01)
+            n, centroids = model.find_optimal_layers(20, combined, 10, 0.01)
 
-                plt.figure()
-                plt.plot(centroids)
-                print(n)
-                plt.show()
-                plt.savefig(f"centroids_{N}_{sr}_{lr}_{sigma}_ip={IP}.png")
-
+            plt.figure()
+            plt.plot(centroids)
+            print(n)
+            plt.show()
+            plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}.png")
 
 
-                # if IP:
-                #     print("Applying IP")
-                #     model.apply_ip()
-                #     model.create_input_weights()
-                # if TONOTOPIC:
-                #     print("Applying tonotopic mapping")
-                #     model.create_tonotopic_mapping()
-                # # :
-                # # model.create_input_weights()
-                #
-                # model.rescale_reservoirs()
-                #
-                # print("Training...")
-                # model.train(X_train, Y_train)
-                #
-                # print("Testing...")
-                # acc, y_true, y_pred, timestep_predictions, y_per_timestep = model.test(X_test, Y_test)
-                #
-                # print(acc)
+            # if IP:
+            #     print("Applying IP")
+            #     model.apply_ip()
+            #     model.create_input_weights()
+            # if TONOTOPIC:
+            #     print("Applying tonotopic mapping")
+            #     model.create_tonotopic_mapping()
+            # # :
+            # # model.create_input_weights()
+            #
+            # model.rescale_reservoirs()
+            #
+            # print("Training...")
+            # model.train(X_train, Y_train)
+            #
+            # print("Testing...")
+            # acc, y_true, y_pred, timestep_predictions, y_per_timestep = model.test(X_test, Y_test)
+            #
+            # print(acc)
 
-                results.append({
-                    "N": N,
-                    "sr": sr,
-                    "lr": lr,
-                    "sigma": sigma,
-                    "n": n,
-                })
+            results.append({
+                "sr": sr,
+                "lr": lr,
+                "sigma": sigma,
+                "n": n,
+            })
 
-                results_df = pd.DataFrame(results)
-                #results_df.to_csv(f"results_deep_layers2.csv", index=False)
+            results_df = pd.DataFrame(results)
+            #results_df.to_csv(f"results_deep_layers2.csv", index=False)

@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     X_train, X_test, Y_train, Y_test = create_training_data(SPEC)
 
-    N_layers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    N_layers = 6
     Ns = [1000, 1200]
     sr = 0.8
     lrs = [0.94, 0.97]
@@ -87,11 +87,11 @@ if __name__ == "__main__":
                             print(acc)
 
                             results.append({
-                                "N_layers": layer,
-                                "sr": sr,
+                                "N": N,
                                 "lr": lr,
                                 "sigma": sigma,
                                 "accuracy": acc,
+                                "IP": IP,
                             })
 
                     results_df = pd.DataFrame(results)
