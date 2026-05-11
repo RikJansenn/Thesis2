@@ -8,7 +8,7 @@ import pandas as pd
 import random
 from reservoirpy.observables import effective_spectral_radius
 import pickle
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 import matplotlib.pyplot as plt
 import matplotlib
 import librosa
@@ -17,24 +17,33 @@ matplotlib.use('tKagg')
 
 
 def create_training_data(SPEC):
-    if SPEC == "mel":
-        data_train = np.load("../Data/mel_data/mel_train.npz")
-        data_test = np.load("../Data/mel_data/mel_test.npz")
-        data_param = np.load("../Data/mel_data/mel_param.npz")
-    elif SPEC == "linear":
-        data_train = np.load("../Data/linear_data/linear_train.npz")
-        data_test = np.load("../Data/linear_data/linear_test.npz")
-    elif SPEC == "coch":
-        data = np.load("../datasets/dataset_cochs_lowres.npz")
+    # if SPEC == "mel":
+    #     data_train = np.load("../Data/mel_data/mel_train.npz")
+    #     data_test = np.load("../Data/mel_data/mel_test.npz")
+    #     data_param = np.load("../Data/mel_data/mel_param.npz")
+    # elif SPEC == "linear":
+    #     data_train = np.load("../Data/linear_data/linear_train.npz")
+    #     data_test = np.load("../Data/linear_data/linear_test.npz")
+    # elif SPEC == "coch":
+    #     data = np.load("../datasets/dataset_cochs_lowres.npz")
+    #
+    # X_train = data_train["specs"]
+    # Y_train = data_train["targets"]
+    # X_test = data_test["specs"]
+    # Y_test = data_test["targets"]
+    # X_param = data_param["specs"]
+    # Y_param = data_param["targets"]
 
-    X_train = data_train["specs"]
-    Y_train = data_train["targets"]
-    X_test = data_test["specs"]
-    Y_test = data_test["targets"]
-    X_param = data_param["specs"]
-    Y_param = data_param["targets"]
+    data = np.load("../Data/mel_data_nsynth/mel_param.npz")
 
-    return X_train, Y_train, X_test, Y_test, X_param, Y_param
+    X = data["specs"]
+    Y = data["targets"]
+
+    X_train, X_test, Y_train, Y_test = train_test_split(
+        X, Y, test_size=0.2, random_state=42, shuffle=True
+    )
+
+    return X, Y
 
 def impulse_train(period, T):
     x = np.zeros(T)
@@ -66,18 +75,19 @@ def generate_fbc_signal(T=6000, switch_prob=0.01, seed=0):
     return s.reshape(-1, 1)
 
 if __name__ == "__main__":
-    IP = True
+    IP = False
     TONOTOPIC = False
     SPEC = "mel"
 
-    X_train, Y_train, X_test, Y_test, X_param, Y_param = create_training_data(SPEC)
+    X, Y = create_training_data(SPEC)
 
     Ns = [50, 100, 200]
     sr = 0.8
     lrs = [0.9]
     sigmas = [0.1]
     ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
-              7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
+              7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6] # MNIST
+    ip_lrs = [3.16e-4, 7.94e-6, 1.99e-5, 1.26e-5, 7.94e-6, 1.26e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 3.16e-5, 1.26e-5, 1.26e-5, 5.01e-5, 3.16e-5, 3.16e-5, 7.94e-5]
     # ip_lrs = [2.2e-4, 3.6e-4, 2.1e-4, 2.2e-4, 4.6e-4, 3.6e-4, 3.6e-4, 2.1e-4, 3.6e-4, 2.2e-4, 2.2e-4, 3.6e-4, 3.6e-4, 3.6e-4, 2.2e-4]
     # ip_lrs = [2.2e-4, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4, 1.3e-4, 4.6e-5, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4]
     # ip_lrs = [2.2e-4]
@@ -85,13 +95,14 @@ if __name__ == "__main__":
     for lr in lrs:
         for sigma in sigmas:
             print("Creating model...")
-            model = DeepNetwork(n_reservoirs=10, N_total=1200, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
+            model = DeepNetwork(n_reservoirs=10, N_total=1200, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=80,
                                 input_width=0.06, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs, IP=IP)
 
             model.rescale_reservoirs()
 
-            combined = np.concatenate(X_param[:150], axis=0)
+            combined = np.concatenate(X[:25], axis=0)
             combined = combined[~np.all(combined == 0, axis=1)]
+            print(len(combined))
 
             n, centroids = model.find_optimal_layers(20, combined, 10, 0.01)
 
@@ -99,7 +110,7 @@ if __name__ == "__main__":
             plt.plot(centroids)
             print(n)
             plt.show()
-            plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}.png")
+            plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}_nsynth.png")
 
 
             # if IP:

@@ -3,7 +3,8 @@ import pandas as pd
 import time
 from reservoirpy.observables import effective_spectral_radius
 from sklearn.model_selection import KFold
-from Models.ShallowESN import ShallowNetwork
+import os
+from Models.DeepESN import DeepNetwork
 
 def create_training_data(SPEC):
     """
@@ -71,6 +72,9 @@ def get_results(param_sets, IP, TONOTOPIC, SPEC):
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
     iterations = 10
+    ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
+              7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
+
     for params in param_sets:
         N = params["N"]
         sr = params["sr"]
@@ -88,8 +92,9 @@ def get_results(param_sets, IP, TONOTOPIC, SPEC):
 
                 # Create model
                 print("Creating model...")
-                model = ShallowNetwork(N=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
-                                       input_dim=X_train[0].shape[1], input_width=0.06, IP=IP)
+                model = DeepNetwork(N=6, N_total=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
+                                       input_dim=X_train[0].shape[1], input_width=0.06, reservoir_width=0.2,
+                                    connectivity=0.1, ip_lrs = ip_lrs, IP=IP)
 
                 # Apply IP
                 if IP:
@@ -131,6 +136,10 @@ def get_results(param_sets, IP, TONOTOPIC, SPEC):
 
                 end_time = time.time()
                 print(f"Total runtime: {end_time - start_time:.2f} seconds")
+
+                # Create directories if they don't exist
+                os.makedirs(f"{save_dir}/trained_models", exist_ok=True)
+                os.makedirs(f"{save_dir}/timesteps", exist_ok=True)
 
                 # Save trained model
                 model.save(

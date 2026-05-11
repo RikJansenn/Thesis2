@@ -45,8 +45,10 @@ if __name__ == "__main__":
     lrs = [0.94, 0.97]
     sigmas = [0.1, 0.2]
     input_dim = X_train[0].shape[1]
-    ip_lrs = [3.16e-4, 7.94e-6, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 7.94e-6, 1e-5, 1e-5, 1e-5, 7.94e-6, 1.99e-5,
-              1.26e-5, 1.99e-5, 1e-5, 1.99e-5, 7.94e-6, 1.99e-5, 3.16e-5]
+    ip_lrs = [3.16e-4, 7.94e-6, 1.99e-5, 1.26e-5, 7.94e-6, 1.26e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5,
+              1.26e-5, 3.16e-5, 1.26e-5, 1.26e-5, 5.01e-5, 3.16e-5, 3.16e-5, 7.94e-5]
+    # ip_lrs = [3.16e-4, 7.94e-6, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 7.94e-6, 1e-5, 1e-5, 1e-5, 7.94e-6, 1.99e-5,
+             # 1.26e-5, 1.99e-5, 1e-5, 1.99e-5, 7.94e-6, 1.99e-5, 3.16e-5] # MNIST
     # ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
     #           7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
     # ip_lrs = [2.2e-4, 3.6e-4, 2.1e-4, 2.2e-4, 3.6e-4, 3.6e-4, 3.6e-4, 2.1e-4, 3.6e-4, 2.2e-4, 2.2e-4, 3.6e-4, 3.6e-4,
@@ -60,7 +62,7 @@ if __name__ == "__main__":
             for N in Ns:
                 for sigma in sigmas:
                     for layer in N_layers:
-                        for i in range(10):
+                        for i in range(5):
                             print("Creating model...")
                             model = DeepNetwork(n_reservoirs=layer, N_total=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
                                                 input_dim=input_dim,
@@ -95,4 +97,4 @@ if __name__ == "__main__":
                             })
 
                     results_df = pd.DataFrame(results)
-                    results_df.to_csv(f"results_deep_params_{lr}_{sr}_{sigma}_{N}_IP={IP}.csv", index=False)
+                    results_df.to_csv(f"results_deep_params_{lr}_{sr}_{sigma}_{N}_IP={IP}_nsynth.csv", index=False)

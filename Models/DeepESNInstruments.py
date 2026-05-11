@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("tKagg")
 
-class DeepNetwork:
+class DeepNetworkInstruments:
     def __init__(self, n_reservoirs, N_total, sr, lr, sigma, ridge, input_dim, input_width, reservoir_width, connectivity, ip_lrs, IP=True):
         self.n_reservoirs = n_reservoirs
         self.N_total = N_total
@@ -214,7 +214,7 @@ class DeepNetwork:
             p, f_norm, f = self.compute_fft(all_last_states)
 
             p_norm = p / np.max(p)
-            if n == 1:
+            if n == max_layers:
                 plt.figure(figsize=(10, 5))
                 markerline, stemlines, baseline = plt.stem(f, p_norm)
 
@@ -403,16 +403,13 @@ class DeepNetwork:
             predictions = predictions_list[i]                       # Get raw prediction per timestep
             pred_per_timestep = np.argmax(predictions, axis=1)              # Get one-hot winner at each timestep
             timestep_predictions.append(pred_per_timestep)
-
-            non_silence_preds = pred_per_timestep[pred_per_timestep != 10]  # Remove silence as category
-            final_pred = mode(non_silence_preds, keepdims=False).mode       # Get winning digit with majority voting
+            final_pred = mode(pred_per_timestep, keepdims=False).mode       # Get winning digit with majority voting
 
             y_pred.append(final_pred)
 
             # Get true labels for this sequence
             y_per_timestep = np.argmax(y_seq, axis=1)
-            non_silence_true = y_per_timestep[y_per_timestep != 10]
-            y_true.append(non_silence_true[0])
+            y_true.append(y_per_timestep[0])
 
         # Convert to arrays
         y_pred = np.array(y_pred)

@@ -7,13 +7,20 @@ from sklearn.model_selection import KFold, train_test_split
 matplotlib.use('tKagg')
 
 # Load the CSV files
-df = pd.read_csv("results_deep_params_0.94_0.8_0.2_1000_IP=True.csv")
+df = pd.read_csv("results_deep_params_0.97_0.8_0.2_1200_IP=True.csv")
 
-# Group by N_layers and compute mean accuracy
-df_avg = df.groupby('N_layers')['accuracy'].mean().reset_index()
+# Compute mean and std
+df_stats = df.groupby('N_layers')['accuracy'].agg(['mean', 'std']).reset_index()
 
 plt.figure()
-plt.plot(df_avg['N_layers'], df_avg['accuracy'], marker='o')
+plt.errorbar(
+    df_stats['N_layers'],
+    df_stats['mean'],
+    yerr=df_stats['std'],
+    marker='o',
+    capsize=5
+)
+
 plt.xlabel('N_layers')
 plt.ylabel('Average accuracy')
 plt.show()
