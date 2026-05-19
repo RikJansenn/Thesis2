@@ -7,14 +7,14 @@ from sklearn.model_selection import KFold, train_test_split
 matplotlib.use('tKagg')
 
 # Load the CSV files
-df = pd.read_csv("results_deep_params_0.97_0.8_0.2_1200_IP=True.csv")
+df = pd.read_csv("results_deep_params_0.94_0.4_0.1_1000_IP=False_secondversion.csv")
 
 # Compute mean and std
-df_stats = df.groupby('N_layers')['accuracy'].agg(['mean', 'std']).reset_index()
+df_stats = df.groupby('layer')['accuracy'].agg(['mean', 'std']).reset_index()
 
 plt.figure()
 plt.errorbar(
-    df_stats['N_layers'],
+    df_stats['layer'],
     df_stats['mean'],
     yerr=df_stats['std'],
     marker='o',
@@ -31,5 +31,5 @@ import plotly.express as px
 
 # Load CSV
 
-stats = df.groupby("N_layers")["accuracy"].agg(["mean", "std"])
+stats = df.groupby("layer")["accuracy"].agg(["mean", "std"])
 print(stats)

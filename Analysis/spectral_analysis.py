@@ -1,6 +1,7 @@
 import numpy as np
 from Models.ShallowESN import ShallowNetwork
 from Models.DeepESN import DeepNetwork
+from Models.NewDeepESN import NewDeepNetwork
 import time
 from reservoirpy.observables import effective_spectral_radius
 from utils import get_KL_divergence_and_entropy
@@ -34,7 +35,7 @@ def create_training_data(SPEC):
     # X_param = data_param["specs"]
     # Y_param = data_param["targets"]
 
-    data = np.load("../Data/mel_data_nsynth/mel_param.npz")
+    data = np.load("../Data/linear_data/linear_train.npz")
 
     X = data["specs"]
     Y = data["targets"]
@@ -43,7 +44,7 @@ def create_training_data(SPEC):
         X, Y, test_size=0.2, random_state=42, shuffle=True
     )
 
-    return X, Y
+    return X[:3000], Y[:3000]
 
 def impulse_train(period, T):
     x = np.zeros(T)
@@ -95,22 +96,28 @@ if __name__ == "__main__":
     for lr in lrs:
         for sigma in sigmas:
             print("Creating model...")
-            model = DeepNetwork(n_reservoirs=10, N_total=1200, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=80,
+            model = NewDeepNetwork(n_reservoirs=1, N_total=1000, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
                                 input_width=0.06, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs, IP=IP)
 
             model.rescale_reservoirs()
 
-            combined = np.concatenate(X[:25], axis=0)
-            combined = combined[~np.all(combined == 0, axis=1)]
-            print(len(combined))
+            model.train(X, Y)
 
-            n, centroids = model.find_optimal_layers(20, combined, 10, 0.01)
+            # Test model
+            print("Testing model...")
+            acc, y_true, y_pred, timestep_predictions, y_per_timestep = model.test(X, Y)
 
-            plt.figure()
-            plt.plot(centroids)
-            print(n)
-            plt.show()
-            plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}_nsynth.png")
+            # combined = np.concatenate(X[:25], axis=0)
+            # combined = combined[~np.all(combined == 0, axis=1)]
+            # print(len(combined))
+            #
+            # n, centroids = model.find_optimal_layers(20, combined, 10, 0.01)
+            #
+            # plt.figure()
+            # plt.plot(centroids)
+            # print(n)
+            # plt.show()
+            # plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}_nsynth.png")
 
 
             # if IP:
@@ -137,7 +144,6 @@ if __name__ == "__main__":
                 "sr": sr,
                 "lr": lr,
                 "sigma": sigma,
-                "n": n,
             })
 
             results_df = pd.DataFrame(results)

@@ -9,6 +9,7 @@ from functools import reduce
 from operator import and_
 import matplotlib.pyplot as plt
 import matplotlib
+from datetime import datetime
 matplotlib.use("tKagg")
 
 class DeepNetwork:
@@ -300,64 +301,62 @@ class DeepNetwork:
 
     def rescale_reservoirs(self):
         for reservoir in self.reservoirs:
-            W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units))
-            mask = np.random.rand(reservoir.units, reservoir.units) < 0.1
+            W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units)).astype(np.float32)
+            mask = np.random.rand(reservoir.units, reservoir.units).astype(np.float32) < 0.1
             W *= mask
             reservoir.W = W
 
             # Identity matrix
-            I = np.eye(reservoir.units)
+            I = np.eye(reservoir.units, dtype=np.float32)
 
             W_t = (1 - reservoir.lr) * I + reservoir.lr * reservoir.W
             W_t = reservoir.sr * W_t / max(abs(eigvals(W_t)))
-            reservoir.W = (W_t - (1 - reservoir.lr) * I)/reservoir.lr
+            reservoir.W = ((W_t - (1 - reservoir.lr) * I) / reservoir.lr).astype(np.float32)
 
     def create_input_weights(self, p=0.1):
         for i, reservoir in enumerate(self.reservoirs):
             if i == 0:
                 input_dim = self.input_dim
                 n = 1 / input_dim
-                Win = np.random.uniform(0.5*n, n, (reservoir.units, input_dim))
-                mask = np.random.rand(reservoir.units, input_dim) < p
+                Win = np.random.uniform(0.5*n, n, (reservoir.units, input_dim)).astype(np.float32)
+                mask = np.random.rand(reservoir.units, input_dim).astype(np.float32) < p
                 Win *= mask
                 reservoir.Win = Win
                 reservoir.input_dim = input_dim
             else:
                 input_dim = reservoir.units
-                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim))
+                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim)).astype(np.float32)
                 reservoir.Win = Win
-                mask = np.random.rand(reservoir.units, input_dim) < p
-                Win *= mask
                 reservoir.input_dim = input_dim
 
     def create_tonotopic_mapping(self):
-        neuron_positions = np.linspace(0, 1, self.reservoir.units)
-        freq_positions = np.linspace(0, 1, self.input_dim)
+        neuron_positions = np.linspace(0, 1, self.reservoir.units, dtype=np.float32)
+        freq_positions = np.linspace(0, 1, self.input_dim, dtype=np.float32)
 
         n = 1 / self.input_dim
 
         ### Create input matrix ###
-        W_in = np.zeros((self.reservoir.units, self.input_dim))
+        W_in = np.zeros((self.reservoir.units, self.input_dim)).astype(np.float32)
         for i, pos in enumerate(neuron_positions):
-            W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2)
-            W_in[i, :] *= np.random.uniform(0.5, 1.0) * n
+            W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2).astype(np.float32)
+            W_in[i, :] *= np.random.uniform(0.5, 1.0).astype(np.float32) * n
 
         # mask = np.random.randn(self.reservoir.units, self.input_dim) < connectivity
         # W_in *= mask  # Apply sparsity mask to input weights
 
         ### Create reservoir weight matrix ###
         # First create normal sparse random weights
-        mask2 = np.random.randn(self.reservoir.units, self.reservoir.units) < self.connectivity
-        W = np.random.uniform(-1, 1, (self.reservoir.units, self.reservoir.units)) * mask2
+        mask2 = np.random.randn(self.reservoir.units, self.reservoir.units).astype(np.float32) < self.connectivity
+        W = np.random.uniform(-1, 1, (self.reservoir.units, self.reservoir.units)).astype(np.float32) * mask2
 
         # Apply a gaussian weighing based on distance
-        distance = np.abs(neuron_positions[:, None] - neuron_positions[None, :])
-        locality = np.exp(-0.5 * (distance / self.reservoir_width) ** 2)  # Compute locality weighing
+        distance = np.abs(neuron_positions[:, None] - neuron_positions[None, :]).astype(np.float32)
+        locality = np.exp(-0.5 * (distance / self.reservoir_width) ** 2).astype(np.float32) # Compute locality weighing
         W *= locality  # Apply weighing to matrix
 
-        # Normalize spectral radius
-        eigvals = np.linalg.eigvals(W)
-        W *= self.sr / np.max(np.abs(eigvals))
+        # # Normalize spectral radius
+        # eigvals = np.linalg.eigvals(W).astype(np.float32)
+        # W *= self.sr / np.max(np.abs(eigvals)).astype(np.float32)
 
         self.reservoir.Win = W_in
         self.reservoir.W = W
@@ -365,13 +364,14 @@ class DeepNetwork:
 
     def apply_ip(self, p=0.1):
         # Create input matrix
-        self.reservoirs[0].Win = np.random.uniform(0.5, 1, (self.reservoirs[0].units, 1))
-        mask = np.random.rand(self.reservoirs[0].units, 1) < p
+        self.reservoirs[0].Win = np.random.uniform(0.5, 1, (self.reservoirs[0].units, 1)).astype(np.float32)
+        mask = np.random.rand(self.reservoirs[0].units, 1).astype(np.float32) < p
         self.reservoirs[0].Win *= mask
 
         # Create narma series
         T = 1000
         _, X_narma = narma(T)
+        X_narma = np.asarray(X_narma, dtype=np.float32)
 
         # Apply IP
         for reservoir in self.reservoirs:
@@ -379,12 +379,28 @@ class DeepNetwork:
             reservoir.fit(X_narma, warmup=100)
 
     def train(self, X, Y):
+        self.log("running")
         states = self.forward.run(X, workers=self.workers)
+
+        self.log("converting states to float32")
+        for k, v in states.items():
+            states[k] = np.asarray(v, dtype=np.float32)
+
+        for k, v in states.items():
+            print(k, v.dtype, v.shape, f"{v.nbytes / 1e9:.2f} GB")
+
+        self.log("concatenating")
         if self.n_reservoirs > 1:
             states_list = list(states.values())
-            states = np.concatenate(states_list, axis=-1)
+            states = np.concatenate(states_list, axis=-1).astype(np.float32, copy=False)
 
+        print("final", states.dtype, states.shape, f"{states.nbytes / 1e9:.2f} GB")
+
+        self.log("readouting")
         self.readout.fit(states, y=Y, workers=1, warmup=5)
+
+    def log(self, msg):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
     def test(self, X_test, Y_test):
         states = self.forward.run(X_test, workers=self.workers)
