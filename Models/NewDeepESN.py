@@ -10,6 +10,8 @@ from operator import and_
 import matplotlib.pyplot as plt
 import matplotlib
 from datetime import datetime
+from ShallowESN import ShallowNetwork
+
 matplotlib.use("tKagg")
 
 class NewDeepNetwork:
@@ -31,46 +33,21 @@ class NewDeepNetwork:
         self._build_model(n_reservoirs)
 
     def _build_model(self, n_reservoirs):
-        # Calculate N per reservoir (and as a result total N) to keep all reservoirs equal size
-        N = int(round(self.N_total / n_reservoirs))
-        total_units = N * n_reservoirs
+        self.models=[]
 
-        W = np.zeros((total_units, total_units), dtype=np.float32)
+        N = int(round(self.N_total / n_reservoirs))
 
         for i in range(n_reservoirs):
-            start = i * N
-            end = (i + 1) * N
+            if i == 0:
+                n_input_dim = self.input_dim
+            else:
+                n_input_dim = N
 
-            # Recurrent block for reservoir i
-            W_rec = np.random.uniform(-1, 1, (N, N)).astype(np.float32)
-            mask = np.random.rand(N, N).astype(np.float32) < 0.1
-            W_rec *= mask
+            model = ShallowNetwork(N, self.sr, self.lr, self.sigma, self.ridge, n_input_dim, self.input_width, self.IP)
 
-            W[start:end, start:end] = W_rec
+            self.models.append()
 
-            # Feedforward connection from reservoir i-1 to reservoir i
-            if i > 0:
-                prev_start = (i - 1) * N
-                prev_end = i * N
-
-                Wil = np.random.uniform(-1, 1, (N, N)).astype(np.float32)
-
-                W[start:end, prev_start:prev_end] = Wil
-
-        # External input only to first reservoir
-        Win_all = np.zeros((total_units, self.input_dim), dtype=np.float32)
-
-        s = 1 / self.input_dim
-
-        Win = np.random.uniform(0.5 * s, s, (N, self.input_dim)).astype(np.float32)
-        mask = np.random.rand(N, self.input_dim).astype(np.float32) < 0.1
-        Win *= mask
-
-        Win_all[:N, :] = Win
-
-        self.reservoir = Reservoir(total_units, W=W, Win=Win_all, lr=self.lr, dtype=np.float32, name="big_reservoir")
-
-        self.readout = Ridge(ridge=self.ridge, output_dim=11, name="readout",)
+        self.readout = Ridge(ridge=self.ridge, output_dim=11, name="readout")
 
     def rescale_reservoirs(self):
         N = int(round(self.N_total / self.n_reservoirs))
@@ -94,20 +71,20 @@ class NewDeepNetwork:
 
 
     def create_input_weights(self, p=0.1):
-        for i, reservoir in enumerate(self.reservoirs):
+        for i, model in enumerate(self.models):
             if i == 0:
-                input_dim = self.input_dim
+                input_dim = model.input_dim
                 n = 1 / input_dim
-                Win = np.random.uniform(0.5*n, n, (reservoir.units, input_dim)).astype(np.float32)
-                mask = np.random.rand(reservoir.units, input_dim).astype(np.float32) < p
+                Win = np.random.uniform(0.5*n, n, (model.N, input_dim))
+                mask = np.random.rand(model.N, input_dim) < p
                 Win *= mask
-                reservoir.Win = Win
-                reservoir.input_dim = input_dim
+                model.reservoir.Win = Win
+                model.reservoir.input_dim = input_dim
             else:
-                input_dim = reservoir.units
-                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim)).astype(np.float32)
-                reservoir.Win = Win
-                reservoir.input_dim = input_dim
+                input_dim = model.N
+                Win = np.random.uniform(-1, 1, (model.N, input_dim)).astype(np.float32)
+                model.reservoir.Win = Win
+                model.reservoir.input_dim = input_dim
 
     def create_tonotopic_mapping(self):
         neuron_positions = np.linspace(0, 1, self.reservoir.units, dtype=np.float32)
@@ -144,19 +121,19 @@ class NewDeepNetwork:
 
     def apply_ip(self, p=0.1):
         # Create input matrix
-        self.reservoirs[0].Win = np.random.uniform(0.5, 1, (self.reservoirs[0].units, 1)).astype(np.float32)
-        mask = np.random.rand(self.reservoirs[0].units, 1).astype(np.float32) < p
-        self.reservoirs[0].Win *= mask
+        self.models[0].reservoir.Win = np.random.uniform(0.5, 1, (self.models[0].N, 1))
+        mask = np.random.rand(self.reservoirs[0].units, 1) < p
+        self.models[0].reservoir.Win *= mask
 
         # Create narma series
         T = 1000
         _, X_narma = narma(T)
-        X_narma = np.asarray(X_narma, dtype=np.float32)
+        X_narma = np.asarray(X_narma)
 
         # Apply IP
-        for reservoir in self.reservoirs:
+        for model in self.models:
             # Train IP on current input
-            reservoir.fit(X_narma, warmup=100)
+            model.reservoir.fit(X_narma, warmup=100)
 
     def train(self, X, Y):
         # Run spectrograms to reservoir, and fit readout layer on reservoir states

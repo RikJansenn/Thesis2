@@ -14,7 +14,7 @@ INSTRUMENT_TO_LABEL = {
     "organ": 6,
     "reed": 7,
     "string": 8,
-    "synth_lead": 9,
+    "synth": 9,
     "vocal": 10,
 }
 
@@ -44,15 +44,12 @@ def load_training_data(folder_path):
 
 def get_instrument_from_filename(filename):
     name = os.path.splitext(filename)[0]
+    instrument = name.split("_")[0]
 
-    for instrument in INSTRUMENT_TO_LABEL:
-        if name.startswith(instrument + "_"):
-            return instrument
+    if instrument not in INSTRUMENT_TO_LABEL:
+        raise ValueError(f"Unknown instrument '{instrument}' from filename: {filename}")
 
-    raise ValueError(f"Could not infer instrument from filename: {filename}")
-
-
-NUM_CLASSES = 11  # 11 instruments + 1 silence
+    return instrument
 
 
 def create_label(S, filename):

@@ -159,9 +159,9 @@ if __name__ == "__main__":
     # Define which model configurations to test with
 
     print(is_multiseries(gen()))
-    IPs = [True, False]
+    IPs = [False]
     TONOs = [False]
-    SPECs = ["linear", "mel", "coch"]
+    SPECs = ["mel"]
 
     for IP in IPs:
         for TONO in TONOs:
@@ -169,14 +169,9 @@ if __name__ == "__main__":
                 # Define which parameter sets to test with
                 if IP:
                     param_sets = [
-                        {"N": 1000, "sr": 0.8, "lr": 0.94, "sigma": 0.1},
-                        {"N": 1000, "sr": 0.8, "lr": 0.97, "sigma": 0.1},
-                        {"N": 1200, "sr": 0.8, "lr": 0.94, "sigma": 0.1},
-                        {"N": 1200, "sr": 0.8, "lr": 0.97, "sigma": 0.1},
-                        {"N": 1000, "sr": 0.8, "lr": 0.94, "sigma": 0.2},
-                        {"N": 1000, "sr": 0.8, "lr": 0.97, "sigma": 0.2},
-                        {"N": 1200, "sr": 0.8, "lr": 0.94, "sigma": 0.2},
-                        {"N": 1200, "sr": 0.8, "lr": 0.97, "sigma": 0.2},
+                        {"N": 1000, "sr": 0.4, "lr": 0.94, "sigma": 0.1},
+                        {"N": 1000, "sr": 0.4, "lr": 0.94, "sigma": 0.2},
+                        {"N": 1000, "sr": 0.4, "lr": 0.94, "sigma": 0.3},
                     ]
                 else:
                     param_sets = [

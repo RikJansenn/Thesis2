@@ -1,35 +1,45 @@
+from pathlib import Path
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib
-import librosa
-from reservoirpy.observables import spectral_radius, effective_spectral_radius
-from sklearn.model_selection import KFold, train_test_split
-matplotlib.use('tKagg')
 
-# Load the CSV files
-df = pd.read_csv("results_deep_params_0.94_0.4_0.1_1000_IP=False_secondversion.csv")
+root = Path(r"D:\Data\result_deep_mnist")
 
-# Compute mean and std
-df_stats = df.groupby('layer')['accuracy'].agg(['mean', 'std']).reset_index()
+dfs = []
 
-plt.figure()
-plt.errorbar(
-    df_stats['layer'],
-    df_stats['mean'],
-    yerr=df_stats['std'],
-    marker='o',
-    capsize=5
+for csv_path in root.rglob("*.csv"):
+    if csv_path.name == "combined_results.csv":
+        continue
+
+    folder = csv_path.parent.name.lower()
+    df = pd.read_csv(csv_path)
+
+    df["IP"] = "ip" in folder
+    df["tono"] = "tono" in folder
+
+    if "linear" in folder:
+        df["input_type"] = "linear"
+    elif "mel" in folder:
+        df["input_type"] = "mel"
+    elif "coch" in folder:
+        df["input_type"] = "coch"
+    else:
+        raise ValueError(f"Could not infer input_type from folder: {folder}")
+
+    # sigma is only meaningful for IP runs
+    if not df["IP"].iloc[0]:
+        df["sigma"] = pd.NA
+
+    dfs.append(df)
+
+combined = pd.concat(dfs, ignore_index=True)
+
+summary = (
+    combined
+    .groupby(["IP", "tono", "input_type", "N", "sr", "lr", "sigma"], dropna=False)
+    ["accuracy"]
+    .mean()
+    .reset_index(name="mean_accuracy")
 )
 
-plt.xlabel('N_layers')
-plt.ylabel('Average accuracy')
-plt.show()
+summary.to_csv(root / "average_accuracy_by_condition_and_params.csv", index=False)
 
-
-import pandas as pd
-import plotly.express as px
-
-# Load CSV
-
-stats = df.groupby("layer")["accuracy"].agg(["mean", "std"])
-print(stats)
+print(summary)

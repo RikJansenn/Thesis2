@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.model_selection import KFold, train_test_split
 
-data = np.load("specs.npz", allow_pickle=True)
+data = np.load("../mel_data_nsynth_highres/specs.npz", allow_pickle=True)
 
 X = data["specs"]
 Y = data["targets"]
@@ -21,6 +21,6 @@ print("Train:", len(X_train), len(X_train)/n_total)
 print("Param:", len(X_param), len(X_param)/n_total)
 print("Ridge:", len(X_ridge), len(X_ridge)/n_total)
 
-np.savez("mel_train.npz", specs=X_train, targets=Y_train)
-np.savez("mel_param.npz", specs=X_param, targets=Y_param)
-np.savez("mel_ridge.npz", specs=X_ridge, targets=Y_ridge)
+np.savez("../mel_data_nsynth_highres/mel_train.npz", specs=X_train, targets=Y_train)
+np.savez("../mel_data_nsynth_highres/mel_param.npz", specs=X_param, targets=Y_param)
+np.savez("../mel_data_nsynth_highres/mel_ridge.npz", specs=X_ridge, targets=Y_ridge)

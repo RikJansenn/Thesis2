@@ -76,19 +76,19 @@ def generate_fbc_signal(T=6000, switch_prob=0.01, seed=0):
     return s.reshape(-1, 1)
 
 if __name__ == "__main__":
-    IP = False
+    IP = True
     TONOTOPIC = False
     SPEC = "mel"
 
     X, Y = create_training_data(SPEC)
 
     Ns = [50, 100, 200]
-    sr = 0.8
-    lrs = [0.9]
+    sr = 0.7
+    lrs = [0.5]
     sigmas = [0.1]
     ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
               7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6] # MNIST
-    ip_lrs = [3.16e-4, 7.94e-6, 1.99e-5, 1.26e-5, 7.94e-6, 1.26e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 3.16e-5, 1.26e-5, 1.26e-5, 5.01e-5, 3.16e-5, 3.16e-5, 7.94e-5]
+    # ip_lrs = [3.16e-4, 7.94e-6, 1.99e-5, 1.26e-5, 7.94e-6, 1.26e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 1.26e-5, 3.16e-5, 1.26e-5, 1.26e-5, 5.01e-5, 3.16e-5, 3.16e-5, 7.94e-5]
     # ip_lrs = [2.2e-4, 3.6e-4, 2.1e-4, 2.2e-4, 4.6e-4, 3.6e-4, 3.6e-4, 2.1e-4, 3.6e-4, 2.2e-4, 2.2e-4, 3.6e-4, 3.6e-4, 3.6e-4, 2.2e-4]
     # ip_lrs = [2.2e-4, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4, 1.3e-4, 4.6e-5, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4]
     # ip_lrs = [2.2e-4]
@@ -96,27 +96,20 @@ if __name__ == "__main__":
     for lr in lrs:
         for sigma in sigmas:
             print("Creating model...")
-            model = NewDeepNetwork(n_reservoirs=1, N_total=1000, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
+            model = DeepNetwork(n_reservoirs=6, N_total=1000, sr=sr, lr=lr, sigma=sigma, ridge=1e-7, input_dim=40,
                                 input_width=0.06, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs, IP=IP)
 
-            model.rescale_reservoirs()
 
-            model.train(X, Y)
+            combined = np.concatenate(X[:100], axis=0)
+            combined = combined[~np.all(combined == 0, axis=1)]
+            print(len(combined))
 
-            # Test model
-            print("Testing model...")
-            acc, y_true, y_pred, timestep_predictions, y_per_timestep = model.test(X, Y)
+            n, centroids = model.find_optimal_layers(15, combined, 10, 0.01)
 
-            # combined = np.concatenate(X[:25], axis=0)
-            # combined = combined[~np.all(combined == 0, axis=1)]
-            # print(len(combined))
-            #
-            # n, centroids = model.find_optimal_layers(20, combined, 10, 0.01)
-            #
-            # plt.figure()
-            # plt.plot(centroids)
-            # print(n)
-            # plt.show()
+            plt.figure()
+            plt.plot(centroids)
+            print(n)
+            plt.show()
             # plt.savefig(f"centroids_{sr}_{lr}_{sigma}_ip={IP}_nsynth.png")
 
 

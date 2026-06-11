@@ -1,5 +1,5 @@
 import numpy as np
-# from Models.ShallowESN import ShallowNetwork
+from Models.ShallowESN import ShallowNetwork
 from Models.DeepESN import DeepNetwork
 from Models.DeepESNInstruments import DeepNetworkInstruments
 import time
@@ -43,16 +43,22 @@ if __name__ == "__main__":
 
     print(len(X_train))
 
-    N_layers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # N_layers = [4]
+    # Ns = [1000]
+    # srs = [0.2, 0.4, 0.6, 0.8]
+    # lrs = [0.2, 0.4, 0.6, 0.8, 0.94, 0.97]
+    # sigmas = [0.1]
+    N_layers = [1, 2, 3, 4, 5]
     Ns = [1000]
-    srs = [0.7]
-    lrs = [0.4, 0.6]
+    srs = [0.8]
+    lrs = [0.94]
     sigmas = [0.1]
+    print(X_train[0].shape)
     input_dim = X_train[0].shape[1]
-    ip_lrs = [3.16e-4, 7.94e-6, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 7.94e-6, 1e-5, 1e-5, 1e-5, 7.94e-6, 1.99e-5,
-              1.26e-5, 1.99e-5, 1e-5, 1.99e-5, 7.94e-6, 1.99e-5, 3.16e-5]
-    # ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
-    #           7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
+    # ip_lrs = [3.16e-4, 7.94e-6, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 7.94e-6, 1e-5, 1e-5, 1e-5, 7.94e-6, 1.99e-5,
+    #           1.26e-5, 1.99e-5, 1e-5, 1.99e-5, 7.94e-6, 1.99e-5, 3.16e-5]
+    ip_lrs = [2.9e-4, 2.5e-5, 9.3e-6, 1.4e-5, 1.3e-5, 1.5e-5, 9.3e-6, 1.3e-5, 1.7e-5, 6.8e-6, 1.4e-5, 7.9e-6, 1.2e-5,
+              7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6, 7.9e-6]
     # ip_lrs = [2.2e-4, 3.6e-4, 2.1e-4, 2.2e-4, 3.6e-4, 3.6e-4, 3.6e-4, 2.1e-4, 3.6e-4, 2.2e-4, 2.2e-4, 3.6e-4, 3.6e-4,
     #           3.6e-4, 2.2e-4]
     # ip_lrs = [2.2e-4, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4, 1.3e-4, 4.6e-5, 1.3e-4, 1.3e-4, 7.7e-5, 1.3e-4, 7.7e-5, 1.3e-4]
@@ -66,7 +72,7 @@ if __name__ == "__main__":
                     for N in Ns:
                         for sigma in sigmas:
                             for layer in N_layers:
-                                for i in range(20):
+                                for i in range(5):
                                     input_width = random.uniform(0.01, 0.7)
                                     # print(input_width)
                                     print(f"Creating model... N_layers = {layer} sr = {sr} lr = {lr} IP = {IP}")
@@ -85,7 +91,7 @@ if __name__ == "__main__":
                                         model.create_tonotopic_mapping()
 
                                     model.create_input_weights()
-                                    model.rescale_reservoirs()
+                                    # model.rescale_reservoirs()
                                     #
                                     # matrix = model.reservoir.W
                                     # plt.imshow(matrix, cmap='seismic')
@@ -101,7 +107,7 @@ if __name__ == "__main__":
                                     print(acc)
 
                                     results.append({
-                                        "layer": layer,
+                                        # "layer": layer,
                                         # "N": N,
                                         "sr": sr,
                                         # "sigma"
@@ -119,4 +125,4 @@ if __name__ == "__main__":
 
 
                             results_df = pd.DataFrame(results)
-                            results_df.to_csv(f"diffsrlrparams_notono.csv", index=False)
+                            results_df.to_csv(f"unscaledsrlrtest.csv", index=False)

@@ -10,6 +10,7 @@ from operator import and_
 import matplotlib.pyplot as plt
 import matplotlib
 from datetime import datetime
+import time
 matplotlib.use("tKagg")
 
 class DeepNetwork:
@@ -97,8 +98,6 @@ class DeepNetwork:
     #
     #     return best_lr
 
-    import numpy as np
-
     def _evaluate_ip_lrs(self, X, previous_lrs, layer, lrs, iterations=5):
         best_lr = None
         best_mean_kl = np.inf
@@ -181,74 +180,75 @@ class DeepNetwork:
         for n in range(1, max_layers + 1):
             all_last_states = []
             all_secondtolast_states = []
-            # lr = self.find_optimal_ip_lr(X, lrs, n)
-            # lrs.append(lr)
-            for g in range(guesses):
-                # self.ip_lrs = lrs
-                self._build_model(n)
-                if self.IP:
-                    self.apply_ip()
-                self.create_input_weights()
-
-                guess_states = self.forward.run(X, workers=self.workers)
-
-                # plt.plot(guess_states[:,0] - np.mean(guess_states[:,0]))
-                # plt.show()
-
-                if n > 1:
-                    guess_states = list(guess_states.values())
-
-                    # if n == 15:
-                    #     kl, ent = get_KL_divergence_and_entropy(guess_states[-1], self.sigma)
-                    #     print(f"kl: {kl}")
-                    #     plot_pdf(guess_states[-1], self.sigma, f"IP on layer {n}")
-
-                    all_last_states.append(guess_states[-1][washout:])
-                    all_secondtolast_states.append(guess_states[-2][washout:])
-                else:
-                    all_last_states.append(guess_states[washout:])
-
-                    # kl, ent = get_KL_divergence_and_entropy(guess_states, self.sigma)
-                    # print(f"kl: {kl}")
-                    # plot_pdf(guess_states, self.sigma, f"IP on layer {n}")
-
-            p, f_norm, f = self.compute_fft(all_last_states)
-
-            p_norm = p / np.max(p)
-            if n == 1:
-                plt.figure(figsize=(10, 5))
-                markerline, stemlines, baseline = plt.stem(f, p_norm)
-
-                plt.setp(markerline, visible=False)
-                plt.setp(baseline, visible=False)
-                plt.ylim(bottom=0)
-
-                plt.xlabel("Frequency")
-                plt.ylabel("Normalized Magnitude")
-                plt.title("Frequency Spectrum")
-                plt.show()
-
-            mu = np.sum(p * f_norm) / np.sum(p)
-            sigma = np.sqrt(np.sum(p * (f_norm - mu) ** 2) / np.sum(p))
-
-            mu_f = np.sum(p * f) / np.sum(p)
-
-            centroids.append(mu_f)
-            print(f"layer {n} centroid: {mu_f:.4f}")
-
-            if n > 1:
-                p2, f2, _ = self.compute_fft(all_secondtolast_states)
-                mu2 = np.sum(p2 * f2) / np.sum(p2)
-                sigma2 = np.sqrt(np.sum(p2 * (f2 - mu2) ** 2) / np.sum(p2))
-
-                if abs(mu - mu2) <= eta * sigma2:
-                    print(f"Stopping at layer {n}")
-                    # return n, centroids
-                elif mu > mu2:
-                    print(f"Stopping at layer {n-1}")
-                    # return n-1, centroids
-
-        return max_layers, centroids
+            lr = self.find_optimal_ip_lr(X, lrs, n)
+            lrs.append(lr)
+        #     for g in range(guesses):
+        #         # self.ip_lrs = lrs
+        #         self._build_model(n)
+        #         if self.IP:
+        #             self.apply_ip()
+        #         self.create_input_weights()
+        #         self.rescale_reservoirs()
+        #
+        #         guess_states = self.forward.run(X, workers=self.workers)
+        #
+        #         # plt.plot(guess_states[:,0] - np.mean(guess_states[:,0]))
+        #         # plt.show()
+        #
+        #         if n > 1:
+        #             guess_states = list(guess_states.values())
+        #
+        #             # if n == 15:
+        #             #     kl, ent = get_KL_divergence_and_entropy(guess_states[-1], self.sigma)
+        #             #     print(f"kl: {kl}")
+        #             #     plot_pdf(guess_states[-1], self.sigma, f"IP on layer {n}")
+        #
+        #             all_last_states.append(guess_states[-1][washout:])
+        #             all_secondtolast_states.append(guess_states[-2][washout:])
+        #         else:
+        #             all_last_states.append(guess_states[washout:])
+        #
+        #             # kl, ent = get_KL_divergence_and_entropy(guess_states, self.sigma)
+        #             # print(f"kl: {kl}")
+        #             # plot_pdf(guess_states, self.sigma, f"IP on layer {n}")
+        #
+        #     p, f_norm, f = self.compute_fft(all_last_states)
+        #
+        #     p_norm = p / np.max(p)
+        #     if n == 1:
+        #         plt.figure(figsize=(10, 5))
+        #         markerline, stemlines, baseline = plt.stem(f, p_norm)
+        #
+        #         plt.setp(markerline, visible=False)
+        #         plt.setp(baseline, visible=False)
+        #         plt.ylim(bottom=0)
+        #
+        #         plt.xlabel("Frequency")
+        #         plt.ylabel("Normalized Magnitude")
+        #         plt.title("Frequency Spectrum")
+        #         plt.show()
+        #
+        #     mu = np.sum(p * f_norm) / np.sum(p)
+        #     sigma = np.sqrt(np.sum(p * (f_norm - mu) ** 2) / np.sum(p))
+        #
+        #     mu_f = np.sum(p * f) / np.sum(p)
+        #
+        #     centroids.append(mu_f)
+        #     print(f"layer {n} centroid: {mu_f:.4f}")
+        #
+        #     if n > 1:
+        #         p2, f2, _ = self.compute_fft(all_secondtolast_states)
+        #         mu2 = np.sum(p2 * f2) / np.sum(p2)
+        #         sigma2 = np.sqrt(np.sum(p2 * (f2 - mu2) ** 2) / np.sum(p2))
+        #
+        #         if abs(mu - mu2) <= eta * sigma2:
+        #             print(f"Stopping at layer {n}")
+        #             # return n, centroids
+        #         elif mu > mu2:
+        #             print(f"Stopping at layer {n-1}")
+        #             # return n-1, centroids
+        #
+        # return max_layers, centroids
 
     def compute_fft(self, states):
         comps_g = []
@@ -301,77 +301,65 @@ class DeepNetwork:
 
     def rescale_reservoirs(self):
         for reservoir in self.reservoirs:
-            W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units)).astype(np.float32)
-            mask = np.random.rand(reservoir.units, reservoir.units).astype(np.float32) < 0.1
+            W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units))
+            mask = np.random.rand(reservoir.units, reservoir.units) < 0.1
             W *= mask
             reservoir.W = W
 
             # Identity matrix
-            I = np.eye(reservoir.units, dtype=np.float32)
+            # I = np.eye(reservoir.units)
+            #
+            # W_t = (1 - reservoir.lr) * I + reservoir.lr * reservoir.W
+            # W_t = reservoir.sr * W_t / max(abs(eigvals(W_t)))
+            # reservoir.W = ((W_t - (1 - reservoir.lr) * I) / reservoir.lr)
 
-            W_t = (1 - reservoir.lr) * I + reservoir.lr * reservoir.W
-            W_t = reservoir.sr * W_t / max(abs(eigvals(W_t)))
-            reservoir.W = ((W_t - (1 - reservoir.lr) * I) / reservoir.lr).astype(np.float32)
+            rho = max(abs(eigvals(reservoir.W)))
+            reservoir.W *= reservoir.sr / rho
 
     def create_input_weights(self, p=0.1):
         for i, reservoir in enumerate(self.reservoirs):
             if i == 0:
                 input_dim = self.input_dim
                 n = 1 / input_dim
-                Win = np.random.uniform(0.5*n, n, (reservoir.units, input_dim)).astype(np.float32)
-                mask = np.random.rand(reservoir.units, input_dim).astype(np.float32) < p
+                Win = np.random.uniform(0.5*n, n, (reservoir.units, input_dim))
+                mask = np.random.rand(reservoir.units, input_dim) < p
                 Win *= mask
                 reservoir.Win = Win
                 reservoir.input_dim = input_dim
             else:
                 input_dim = reservoir.units
-                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim)).astype(np.float32)
+                Win = np.random.uniform(-1, 1, (reservoir.units, input_dim))
                 reservoir.Win = Win
                 reservoir.input_dim = input_dim
 
     def create_tonotopic_mapping(self):
-        neuron_positions = np.linspace(0, 1, self.reservoir.units, dtype=np.float32)
-        freq_positions = np.linspace(0, 1, self.input_dim, dtype=np.float32)
+        neuron_positions = np.linspace(0, 1, self.reservoirs[0].units)
+        freq_positions = np.linspace(0, 1, self.input_dim)
 
         n = 1 / self.input_dim
 
         ### Create input matrix ###
-        W_in = np.zeros((self.reservoir.units, self.input_dim)).astype(np.float32)
+        W_in = np.zeros((self.reservoirs[0].units, self.input_dim))
         for i, pos in enumerate(neuron_positions):
-            W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2).astype(np.float32)
-            W_in[i, :] *= np.random.uniform(0.5, 1.0).astype(np.float32) * n
+            W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2)
+            W_in[i, :] *= np.random.uniform(0.5, 1.0) * n
 
         # mask = np.random.randn(self.reservoir.units, self.input_dim) < connectivity
         # W_in *= mask  # Apply sparsity mask to input weights
 
-        ### Create reservoir weight matrix ###
-        # First create normal sparse random weights
-        mask2 = np.random.randn(self.reservoir.units, self.reservoir.units).astype(np.float32) < self.connectivity
-        W = np.random.uniform(-1, 1, (self.reservoir.units, self.reservoir.units)).astype(np.float32) * mask2
-
-        # Apply a gaussian weighing based on distance
-        distance = np.abs(neuron_positions[:, None] - neuron_positions[None, :]).astype(np.float32)
-        locality = np.exp(-0.5 * (distance / self.reservoir_width) ** 2).astype(np.float32) # Compute locality weighing
-        W *= locality  # Apply weighing to matrix
-
-        # # Normalize spectral radius
-        # eigvals = np.linalg.eigvals(W).astype(np.float32)
-        # W *= self.sr / np.max(np.abs(eigvals)).astype(np.float32)
-
-        self.reservoir.Win = W_in
-        self.reservoir.W = W
-        self.reservoir.input_dim = self.input_dim
+        self.reservoirs[0].Win = W_in
+        self.reservoirs[0].input_dim = self.input_dim
 
     def apply_ip(self, p=0.1):
         # Create input matrix
-        self.reservoirs[0].Win = np.random.uniform(0.5, 1, (self.reservoirs[0].units, 1)).astype(np.float32)
-        mask = np.random.rand(self.reservoirs[0].units, 1).astype(np.float32) < p
+        self.reservoirs[0].Win = np.random.uniform(0.5, 1, (self.reservoirs[0].units, 1))
+        mask = np.random.rand(self.reservoirs[0].units, 1) < p
         self.reservoirs[0].Win *= mask
 
         # Create narma series
         T = 1000
         _, X_narma = narma(T)
-        X_narma = np.asarray(X_narma, dtype=np.float32)
+        X_narma = np.asarray(X_narma)
 
         # Apply IP
         for reservoir in self.reservoirs:
@@ -379,25 +367,28 @@ class DeepNetwork:
             reservoir.fit(X_narma, warmup=100)
 
     def train(self, X, Y):
-        self.log("running")
+        start_time = time.time()
         states = self.forward.run(X, workers=self.workers)
+        run_time = time.time()
 
-        self.log("converting states to float32")
-        for k, v in states.items():
-            states[k] = np.asarray(v, dtype=np.float32)
+        # print(f"Time spent running: {run_time - start_time:.2f} seconds")
+        # for k, v in states.items():
+        #     states[k] = np.asarray(v, dtype=np.float32)
+        #
+        # for k, v in states.items():
+        #     print(k, v.dtype, v.shape, f"{v.nbytes / 1e9:.2f} GB")
 
-        for k, v in states.items():
-            print(k, v.dtype, v.shape, f"{v.nbytes / 1e9:.2f} GB")
-
-        self.log("concatenating")
         if self.n_reservoirs > 1:
             states_list = list(states.values())
-            states = np.concatenate(states_list, axis=-1).astype(np.float32, copy=False)
+            states = np.concatenate(states_list, axis=-1)
 
-        print("final", states.dtype, states.shape, f"{states.nbytes / 1e9:.2f} GB")
+        concat_time = time.time()
+        # print(f"Time spent concatenating:  {concat_time - run_time:.2f} seconds")
 
-        self.log("readouting")
         self.readout.fit(states, y=Y, workers=1, warmup=5)
+
+        fit_time = time.time()
+        # print(f"Time spent fitting:  {fit_time - concat_time:.2f} seconds")
 
     def log(self, msg):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")

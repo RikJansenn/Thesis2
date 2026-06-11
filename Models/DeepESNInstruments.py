@@ -7,9 +7,6 @@ from utils import get_KL_divergence_and_entropy, plot_pdf
 from numpy.linalg import eigvals
 from functools import reduce
 from operator import and_
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use("tKagg")
 
 class DeepNetworkInstruments:
     def __init__(self, n_reservoirs, N_total, sr, lr, sigma, ridge, input_dim, input_width, reservoir_width, connectivity, ip_lrs, IP=True):
@@ -359,9 +356,9 @@ class DeepNetworkInstruments:
         eigvals = np.linalg.eigvals(W)
         W *= self.sr / np.max(np.abs(eigvals))
 
-        self.reservoir.Win = W_in
-        self.reservoir.W = W
-        self.reservoir.input_dim = self.input_dim
+        self.reservoir[0].Win = W_in
+        #self.reservoir.W = W
+        self.reservoir[0].input_dim = self.input_dim
 
     def apply_ip(self, p=0.1):
         # Create input matrix
