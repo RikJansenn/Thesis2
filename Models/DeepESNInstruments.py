@@ -297,17 +297,14 @@ class DeepNetworkInstruments:
 
     def rescale_reservoirs(self):
         for reservoir in self.reservoirs:
-            W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units))
-            mask = np.random.rand(reservoir.units, reservoir.units) < 0.1
-            W *= mask
-            reservoir.W = W
+            # W = np.random.uniform(-1, 1, (reservoir.units, reservoir.units))
+            # mask = np.random.rand(reservoir.units, reservoir.units) < 0.1
+            # W *= mask
+            # reservoir.W = W
 
-            # Identity matrix
-            I = np.eye(reservoir.units)
-
-            W_t = (1 - reservoir.lr) * I + reservoir.lr * reservoir.W
-            W_t = reservoir.sr * W_t / max(abs(eigvals(W_t)))
-            reservoir.W = (W_t - (1 - reservoir.lr) * I)/reservoir.lr
+            # # Identity matrix
+            rho = max(abs(np.linalg.eigvals(reservoir.W.toarray())))
+            reservoir.W *= reservoir.sr / rho
 
     def create_input_weights(self, p=0.1):
         for i, reservoir in enumerate(self.reservoirs):

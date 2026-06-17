@@ -1,7 +1,12 @@
+import os
+
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["OPENBLAS_NUM_THREADS"] = "8"
+os.environ["MKL_NUM_THREADS"] = "8"
+os.environ["NUMEXPR_NUM_THREADS"] = "8"
+
 import numpy as np
-# from Models.ShallowESN import ShallowNetwork
-from Models.DeepESN import DeepNetwork
-from Models.DeepESNInstruments import DeepNetworkInstruments
+from DeepESN import DeepNetworkInstruments
 import time
 from reservoirpy.observables import effective_spectral_radius
 from utils import get_KL_divergence_and_entropy
@@ -15,13 +20,13 @@ import matplotlib
 import librosa
 from reservoirpy.observables import spectral_radius, effective_spectral_radius
 from sklearn.model_selection import KFold, train_test_split
-matplotlib.use('tKagg')
+# matplotlib.use('tKagg')
 
 
 def create_training_data(SPEC):
     if SPEC == "mel":
         #data_param = np.load("../Data/mel_data_nsynth/mel_param.npz")
-        data_param = np.load("../Data/mel_data/mel_param.npz")
+        data_param = np.load("../mel_data/mel_data_nsynth/mel_train.npz")
     if SPEC == "coch":
         data_param = np.load("../coch_data/coch_param2.npz")
 
@@ -43,10 +48,10 @@ if __name__ == "__main__":
 
     print(len(X_train))
 
-    N_layers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    Ns = [1000]
-    srs = [0.7]
-    lrs = [0.4, 0.6]
+    N_layers = [4]
+    Ns = [1200]
+    srs = [0.2]
+    lrs = [0.2]
     sigmas = [0.1]
     input_dim = X_train[0].shape[1]
     ip_lrs = [3.16e-4, 7.94e-6, 7.94e-6, 1e-5, 1.26e-5, 7.94e-6, 1e-5, 7.94e-6, 1e-5, 1e-5, 1e-5, 7.94e-6, 1.99e-5,
@@ -66,11 +71,11 @@ if __name__ == "__main__":
                     for N in Ns:
                         for sigma in sigmas:
                             for layer in N_layers:
-                                for i in range(20):
+                                for i in range(3):
                                     input_width = random.uniform(0.01, 0.7)
                                     # print(input_width)
                                     print(f"Creating model... N_layers = {layer} sr = {sr} lr = {lr} IP = {IP}")
-                                    model = DeepNetwork(n_reservoirs=layer, N_total=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
+                                    model = DeepNetworkInstruments(n_reservoirs=layer, N_total=N, sr=sr, lr=lr, sigma=sigma, ridge=1e-7,
                                                         input_dim=input_dim,
                                                         input_width=input_width, reservoir_width=0.2, connectivity=0.1, ip_lrs=ip_lrs,
                                                         IP=IP)
@@ -111,12 +116,12 @@ if __name__ == "__main__":
                                         "accuracy": acc,
                                     })
 
-                                    # timesteps_df = pd.DataFrame(timestep_predictions)
-                                    # timesteps_df.to_csv("timesteps_csv.csv", index=False)
-                                    #
-                                    # labels_df = pd.DataFrame(y_per_timestep)
-                                    # labels_df.to_csv("labels_csv.csv", index=False)
+                                    timesteps_df = pd.DataFrame(timestep_predictions)
+                                    timesteps_df.to_csv(f"fulldatatest/timesteps_csv_{i}.csv", index=False)
+
+                                    labels_df = pd.DataFrame(y_per_timestep)
+                                    labels_df.to_csv(f"fulldatatest/labels_csv_{i}.csv", index=False)
 
 
                             results_df = pd.DataFrame(results)
-                            results_df.to_csv(f"diffsrlrparams_notono.csv", index=False)
+                            results_df.to_csv(f"fulldatatest/fulldatatestnsynthdeep.csv", index=False)

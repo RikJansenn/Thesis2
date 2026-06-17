@@ -16,7 +16,7 @@ dataset_path = r"D:/Data/NSynthTrain/nsynth-train.jsonwav.tar/nsynth-train"
 json_path = os.path.join(dataset_path, "examples.json")
 audio_folder = os.path.join(dataset_path, "audio")
 
-output_folder = r"nsynth_preprocessed"
+output_folder = r"D:/Data/nsynth_preprocessed_2"
 target_sr = 16000
 samples_per_class = 1818
 seed = 42
@@ -42,6 +42,14 @@ def select_balanced_subset(json_path, samples_per_class=1818, seed=42):
     family_to_files = defaultdict(list)
 
     for note_id, info in metadata.items():
+        instrument_source = info["instrument_source_str"]
+        instrument_family_str = info["instrument_family_str"]
+
+        # Skip synthetic instruments
+        if instrument_family_str != "synth_lead" and instrument_source == "synthetic":
+            print("skipping")
+            continue
+
         family_id = info["instrument_family"]
         filename = f"{note_id}.wav"
         family_to_files[family_id].append(filename)
@@ -82,6 +90,11 @@ def preprocess_selected_files(
     selected_metadata = {}
 
     for i, filename in enumerate(selected_files, start=1):
+        output_path = os.path.join(output_folder, filename)
+
+        if os.path.exists(output_path):
+            continue
+
         print(i)
         input_path = os.path.join(audio_folder, filename)
 
@@ -101,8 +114,6 @@ def preprocess_selected_files(
             )
 
         audio = rms_normalize(audio)
-
-        output_path = os.path.join(output_folder, filename)
 
         sf.write(output_path, audio, target_sr)
 
