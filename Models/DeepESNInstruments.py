@@ -9,7 +9,7 @@ from functools import reduce
 from operator import and_
 
 class DeepNetworkInstruments:
-    def __init__(self, n_reservoirs, N_total, sr, lr, sigma, ridge, input_dim, input_width, reservoir_width, connectivity, ip_lrs, IP=True):
+    def __init__(self, n_reservoirs, N_total, sr, lr, sigma, ridge, input_dim, input_width, width_increase, ip_lrs, IP=True):
         self.n_reservoirs = n_reservoirs
         self.N_total = N_total
         self.sr = sr
@@ -18,8 +18,7 @@ class DeepNetworkInstruments:
         self.ridge = ridge # Just one readout layer
         self.input_dim = input_dim # Just one input layer
         self.input_width = input_width # Just one input layer
-        self.reservoir_width = reservoir_width
-        self.connectivity = connectivity # Consistent across reservoirs?
+        self.width_increase = width_increase
         self.IP = IP
         self.ip_lrs = ip_lrs
         self.workers = 1
@@ -211,18 +210,18 @@ class DeepNetworkInstruments:
             p, f_norm, f = self.compute_fft(all_last_states)
 
             p_norm = p / np.max(p)
-            if n == max_layers:
-                plt.figure(figsize=(10, 5))
-                markerline, stemlines, baseline = plt.stem(f, p_norm)
-
-                plt.setp(markerline, visible=False)
-                plt.setp(baseline, visible=False)
-                plt.ylim(bottom=0)
-
-                plt.xlabel("Frequency")
-                plt.ylabel("Normalized Magnitude")
-                plt.title("Frequency Spectrum")
-                plt.show()
+            # if n == max_layers:
+            #     plt.figure(figsize=(10, 5))
+            #     markerline, stemlines, baseline = plt.stem(f, p_norm)
+            #
+            #     plt.setp(markerline, visible=False)
+            #     plt.setp(baseline, visible=False)
+            #     plt.ylim(bottom=0)
+            #
+            #     plt.xlabel("Frequency")
+            #     plt.ylabel("Normalized Magnitude")
+            #     plt.title("Frequency Spectrum")
+            #     plt.show()
 
             mu = np.sum(p * f_norm) / np.sum(p)
             sigma = np.sqrt(np.sum(p * (f_norm - mu) ** 2) / np.sum(p))
@@ -324,38 +323,99 @@ class DeepNetworkInstruments:
                 Win *= mask
                 reservoir.input_dim = input_dim
 
+    # def create_tonotopic_mapping(self):
+    #     neuron_positions = np.linspace(0, 1, self.reservoirs[0].units)
+    #     freq_positions = np.linspace(0, 1, self.input_dim)
+    #
+    #     print(self.input_dim)
+    #
+    #     n = 1 / self.input_dim
+    #
+    #     ### Create input matrix ###
+    #     W_in = np.zeros((self.reservoirs[0].units, self.input_dim))
+    #     for i, pos in enumerate(neuron_positions):
+    #         W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2)
+    #         W_in[i, :] *= np.random.uniform(0.5, 1.0) * n
+    #
+    #     # mask = np.random.randn(self.reservoir.units, self.input_dim) < connectivity
+    #     # W_in *= mask  # Apply sparsity mask to input weights
+    #
+    #     self.reservoirs[0].Win = W_in
+    #     self.reservoirs[0].input_dim = self.input_dim
     def create_tonotopic_mapping(self):
-        neuron_positions = np.linspace(0, 1, self.reservoir.units)
-        freq_positions = np.linspace(0, 1, self.input_dim)
 
-        n = 1 / self.input_dim
+        # ----- Spectrogram -> first reservoir -----
 
-        ### Create input matrix ###
-        W_in = np.zeros((self.reservoir.units, self.input_dim))
-        for i, pos in enumerate(neuron_positions):
-            W_in[i, :] = np.exp(-0.5 * ((freq_positions - pos) / self.input_width) ** 2)
-            W_in[i, :] *= np.random.uniform(0.5, 1.0) * n
+        input_positions = np.linspace(0, 1, self.input_dim)
+        current_positions = np.linspace(0, 1, self.reservoirs[0].units)
 
-        # mask = np.random.randn(self.reservoir.units, self.input_dim) < connectivity
-        # W_in *= mask  # Apply sparsity mask to input weights
+        W_in = self._create_tonotopic_matrix(
+            target_positions=current_positions,
+            source_positions=input_positions,
+            width=self.input_width,
+            first_layer=True
+        )
 
-        ### Create reservoir weight matrix ###
-        # First create normal sparse random weights
-        mask2 = np.random.randn(self.reservoir.units, self.reservoir.units) < self.connectivity
-        W = np.random.uniform(-1, 1, (self.reservoir.units, self.reservoir.units)) * mask2
+        n = 1/self.input_dim
 
-        # Apply a gaussian weighing based on distance
-        distance = np.abs(neuron_positions[:, None] - neuron_positions[None, :])
-        locality = np.exp(-0.5 * (distance / self.reservoir_width) ** 2)  # Compute locality weighing
-        W *= locality  # Apply weighing to matrix
+        self.reservoirs[0].Win = W_in * n
+        self.reservoirs[0].input_dim = self.input_dim
 
-        # Normalize spectral radius
-        eigvals = np.linalg.eigvals(W)
-        W *= self.sr / np.max(np.abs(eigvals))
+        # ----- Previous reservoir -> next reservoir -----
+        previous_positions = current_positions
 
-        self.reservoir[0].Win = W_in
-        #self.reservoir.W = W
-        self.reservoir[0].input_dim = self.input_dim
+        for layer_idx in range(1, len(self.reservoirs)):
+            reservoir = self.reservoirs[layer_idx]
+
+            current_positions = np.linspace(0, 1, reservoir.units)
+
+            W_inter = self._create_tonotopic_matrix(
+                target_positions=current_positions,
+                source_positions=previous_positions,
+                width=self.input_width + self.width_increase,
+                first_layer=False
+            )
+
+            reservoir.Win = W_inter
+            reservoir.input_dim = self.reservoirs[layer_idx - 1].units
+
+            previous_positions = current_positions
+
+    def _create_tonotopic_matrix(
+            self,
+            target_positions,
+            source_positions,
+            width,
+            first_layer
+    ):
+        """
+        Rows correspond to target neurons.
+        Columns correspond to source features or source neurons.
+        """
+
+        n_targets = len(target_positions)
+        n_sources = len(source_positions)
+
+        W = np.zeros((n_targets, n_sources))
+
+        for i, target_pos in enumerate(target_positions):
+            distances = source_positions - target_pos
+
+            W[i, :] = np.exp(-0.5 * (distances / width) ** 2)
+
+            # Random strength per target neuron
+            if first_layer:
+                W[i, :] *= np.random.uniform(0.5, 1.0)
+            else:
+                W *= np.random.choice([-1, 1], size=W.shape)
+
+            # Normalize each neuron's total incoming weight
+            # weight_sum = np.sum(W[i, :])
+            #
+            # if weight_sum > 0:
+            #     W[i, :] /= weight_sum
+
+        return W
 
     def apply_ip(self, p=0.1):
         # Create input matrix

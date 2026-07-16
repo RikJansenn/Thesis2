@@ -33,7 +33,7 @@ def load_training_data(folder_path):
 
                 audio, sr = librosa.load(file_path, sr=None)
 
-                S_mel = create_mel_spectrogram(audio, sr)
+                S_mel = create_linear_spectrogram(audio, sr)
                 mel_samples.append(S_mel)
 
                 label_mel = create_label(S_mel, filename)
@@ -68,57 +68,32 @@ def create_label(S, filename):
     return labels_expanded
 
 
-def create_mel_spectrogram(audio, sr):
-    fixed_length = 1
-
-    n_fft = 512
-    win_length = 512
+def create_linear_spectrogram(audio, sr):
+    # Spectrogram parameters
+    n_fft = 158
+    win_length = 158
     hop_length = 256
-    n_mels = 80
 
-    # audio = trim_or_pad(audio, sr, fixed_length)
-
-    S = librosa.feature.melspectrogram(
-        y=audio,
-        sr=sr,
-        n_fft=n_fft,
-        hop_length=hop_length,
-        win_length=win_length,
-        n_mels=n_mels,
-    )
-
-    S = librosa.power_to_db(S, ref=np.max)
+    # Create Spectrogram, conver to db and transpose to match expected input shape (time_steps, features)
+    S = np.abs(librosa.stft(y=audio, win_length=win_length, n_fft=n_fft, hop_length=hop_length))
+    S = librosa.amplitude_to_db(S, ref=np.max)
     S = S.T
 
+    # Normalize Spectrogram
     S = (S - S.min()) / (S.max() - S.min())
 
-    print(f"Mel shape: {S.shape}")
+    print(f"Linear shape: {S.shape}")
+
     return S
 
 
-def trim_or_pad(audio, sr, fixed_length):
-    target_len = int(sr * fixed_length)
-
-    if len(audio) < target_len:
-        pad_len = target_len - len(audio)
-
-        left = np.random.randint(0, pad_len + 1)
-        right = pad_len - left
-
-        audio = np.pad(audio, (left, right), mode="constant")
-    else:
-        audio = audio[:target_len]
-
-    return audio
-
-
 if __name__ == "__main__":
-    melspecs, targets_mel = load_training_data(folder_path)
+    specs, targets = load_training_data(folder_path)
 
-    os.makedirs("Data/mel_data_nsynth", exist_ok=True)
+    os.makedirs("Data/linear_data_nsynth", exist_ok=True)
 
     np.savez(
-        "Data/mel_data_nsynth/specs_pitch",
-        specs=np.array(melspecs),
-        targets=np.array(targets_mel),
+        "Data/linear_data_nsynth/specs",
+        specs=np.array(specs),
+        targets=np.array(targets),
     )

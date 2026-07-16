@@ -8,8 +8,8 @@ matplotlib.use('tkagg')
 
 # Read CSVs.
 # header=0 means: use the first row 0,1,2,...,250 as column names
-pred_timesteps = pd.read_csv("fulldatatest/timesteps_csv_1.csv", header=0).to_numpy()
-label_timesteps = pd.read_csv("fulldatatest/labels_csv_1.csv", header=0).to_numpy()
+pred_timesteps = pd.read_csv("fulldatatest/timesteps_csv_2_energied.csv", header=0).to_numpy()
+label_timesteps = pd.read_csv("fulldatatest/labels_csv_2_energied.csv", header=0).to_numpy()
 
 
 # Majority vote per sample
